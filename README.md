@@ -4,6 +4,8 @@
 
 Un seul fichier HTML, sans installation, sans serveur, sans compte. On l'ouvre dans un navigateur et on construit sa roadmap par glisser-déposer.
 
+**[Essayer en ligne](https://benjaws.github.io/quatr/)**
+
 ![Aperçu de QuatR](docs/screenshot.png)
 
 ## Fonctionnalités
@@ -32,4 +34,4 @@ Une connexion internet est nécessaire au chargement : Tailwind CSS, Font Awesom
 
 ## Licence
 
-À définir.
+[MIT](LICENSE)
