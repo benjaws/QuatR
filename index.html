@@ -1,0 +1,795 @@
+<!DOCTYPE html>
+<html lang="fr" class="h-full">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Roadmap - Gantt Simplifié</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    fontFamily: { sans: ['Inter', 'sans-serif'] }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { font-family: 'Inter', sans-serif; }
+        ::-webkit-scrollbar { width: 6px; height: 6px; }
+        ::-webkit-scrollbar-track { background: #f1f1f1; }
+        ::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: #94a3b8; }
+
+        /* Styles d'impression stricts pour forcer l'affichage du Gantt et masquer le reste */
+        @media print {
+            body {
+                background: white !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            header.no-print, 
+            .no-print { 
+                display: none !important; 
+            }
+            html, body {
+                height: auto !important;
+                overflow: visible !important;
+                display: block !important;
+            }
+            main, main > div {
+                display: block !important;
+                height: auto !important;
+                overflow: visible !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                max-width: 100% !important;
+                width: 100% !important;
+            }
+            #gantt-svg-overlay .arrow-del { display: none !important; }
+            #gantt-printable-area {
+                border: none !important;
+                box-shadow: none !important;
+                padding: 0 !important;
+                margin: 0 !important;
+                width: 100% !important;
+                overflow: visible !important;
+            }
+            #gantt-matrix {
+                overflow: visible !important;
+            }
+            @page { 
+                size: landscape; 
+                margin: 1cm; 
+            }
+        }
+        
+        .subproject-card { cursor: grab; transition: transform 0.1s ease, box-shadow 0.1s ease; }
+        .subproject-card:active { cursor: grabbing; }
+        .drag-over { background-color: rgba(59, 130, 246, 0.1) !important; border: 2px dashed #3b82f6 !important; }
+        .gantt-bar { position: relative; user-select: none; }
+        .gantt-row { display: flex; flex-wrap: nowrap; gap: 0; align-items: stretch; min-height: 44px; border-radius: 10px; }
+        .new-row-zone { height: 14px; border-radius: 8px; flex-shrink: 0; }
+        .new-row-zone.drag-over { height: 36px; }
+        .arrow-group { pointer-events: auto; cursor: pointer; }
+        .arrow-line { transition: stroke 0.15s; }
+        .arrow-group:hover .arrow-line { stroke: #e11d48; }
+        .arrow-del { opacity: 0; transition: opacity 0.15s; }
+        .arrow-group:hover .arrow-del { opacity: 1; }
+    </style>
+</head>
+<body class="bg-slate-50 text-slate-800 h-full flex flex-col antialiased">
+
+    <header class="bg-white border-b border-slate-200 px-6 py-4 flex items-center justify-between no-print shadow-sm z-10">
+        <div class="flex items-center space-x-3">
+            <div class="bg-blue-600 text-white p-2.5 rounded-xl shadow-md flex items-center justify-center">
+                <i class="fa-solid fa-chart-gantt text-xl"></i>
+            </div>
+            <div>
+                <h1 class="text-xl font-bold text-slate-900 tracking-tight">Roadmap</h1>
+            </div>
+        </div>
+        <div class="flex items-center space-x-3">
+            <button onclick="triggerPrint()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg shadow-sm transition flex items-center space-x-2">
+                <i class="fa-solid fa-file-pdf"></i>
+                <span>Générer Vue PDF / Imprimer</span>
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-1 flex flex-col p-6 overflow-hidden max-w-[1600px] w-full mx-auto">
+
+        <!-- Notification Toast -->
+        <div id="toast" class="fixed bottom-5 right-5 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl flex items-center space-x-3 transform translate-y-20 opacity-0 transition-all duration-300">
+            <i id="toast-icon" class="fa-solid fa-circle-check text-emerald-400 text-lg"></i>
+            <span id="toast-message" class="text-sm font-medium">Action réussie</span>
+        </div>
+
+        <div class="flex flex-col gap-4 flex-1 overflow-hidden">
+
+            <div class="bg-white rounded-2xl border border-slate-200 px-4 py-3 no-print shadow-sm space-y-2">
+                <form id="addSubprojectForm" onsubmit="handleAddSubproject(event)" class="flex flex-wrap items-center gap-2">
+                    <i class="fa-solid fa-boxes-stacked text-blue-600 text-sm"></i>
+                    <input type="text" id="spName" placeholder="Nom du bloc, ex: SP-01 Refonte API" required class="flex-1 min-w-[200px] text-xs px-3 py-2 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <select id="spColor" class="text-xs px-2 py-2 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                        <option value="blue">Bleu</option>
+                        <option value="emerald">Vert</option>
+                        <option value="amber">Ambre</option>
+                        <option value="purple">Violet</option>
+                        <option value="rose">Rose</option>
+                        <option value="cyan">Cyan</option>
+                    </select>
+                    <button type="submit" class="bg-slate-800 hover:bg-slate-900 text-white font-medium text-xs px-3.5 py-2 rounded-lg transition flex items-center space-x-1.5">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>Ajouter un bloc</span>
+                    </button>
+                    <button type="button" onclick="addYearColumn()" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-lg transition flex items-center space-x-1.5">
+                        <i class="fa-solid fa-calendar-plus"></i>
+                        <span>Ajouter une année</span>
+                    </button>
+                </form>
+
+                <div class="flex items-center gap-2">
+                    <span class="text-[11px] font-semibold text-slate-500 whitespace-nowrap">Backlog <span id="backlog-count" class="ml-1 bg-slate-100 px-1.5 py-0.5 rounded-full text-slate-600">0</span></span>
+                    <div class="flex-1 flex flex-wrap gap-2 rounded-xl min-h-[34px] items-center" id="unassigned-container" ondragover="allowDrop(event)" ondragleave="removeDragOver(event)" ondrop="dropToBacklog(event)"></div>
+                </div>
+            </div>
+
+            <div id="gantt-printable-area" class="flex-1 min-h-0 bg-white rounded-2xl border border-slate-200 p-6 flex flex-col shadow-sm overflow-hidden print-container relative">
+                
+                <!-- SVG overlay for dynamic connector arrows -->
+                <svg id="gantt-svg-overlay" class="absolute inset-0 w-full h-full pointer-events-none z-20 overflow-visible"></svg>
+
+                <div class="flex-1 overflow-auto pr-2 relative z-10 space-y-4" id="gantt-matrix">
+                    <!-- Dynamic rendering of Gantt chart -->
+                </div>
+
+                <div class="pt-4 mt-4 border-t border-slate-200 flex items-center justify-between no-print relative z-30">
+                    <button onclick="addSection()" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition flex items-center space-x-2">
+                        <i class="fa-solid fa-plus"></i>
+                        <span>Ajouter une nouvelle section</span>
+                    </button>
+                </div>
+
+            </div>
+
+        </div>
+    </main>
+
+    <script>
+        const currentYearNum = new Date().getFullYear();
+        let appData = {
+            years: [currentYearNum, currentYearNum + 1, currentYearNum + 2],
+            sections: [
+                { id: 'sec-1', name: 'Phase 1 : Cadrage & Architecture' },
+                { id: 'sec-2', name: 'Phase 2 : Core Development & API' },
+                { id: 'sec-3', name: 'Phase 3 : Déploiement & Run' }
+            ],
+            subprojects: [
+                { id: 'sp-1', name: 'SP-01 Audit & Cadrage', widthPct: 50, color: 'blue', assignedTo: { yearIdx: 0, sectionId: 'sec-1', subRow: 0 } },
+                { id: 'sp-2', name: 'SP-02 Specs Techniques', widthPct: 50, color: 'amber', assignedTo: { yearIdx: 0, sectionId: 'sec-1', subRow: 1 } },
+                { id: 'sp-3', name: 'SP-03 Développement Socle V1', widthPct: 50, color: 'purple', assignedTo: { yearIdx: 1, sectionId: 'sec-2', subRow: 0 } },
+                { id: 'sp-4', name: 'SP-04 Tests & QA Intégration', widthPct: 50, color: 'emerald', assignedTo: { yearIdx: 2, sectionId: 'sec-2', subRow: 0 } },
+                { id: 'sp-5', name: 'SP-05 Migration & Rollout', widthPct: 50, color: 'rose', assignedTo: { yearIdx: 2, sectionId: 'sec-3', subRow: 0 } },
+                { id: 'sp-6', name: 'SP-06 Support & Stabilisation', widthPct: 50, color: 'cyan', assignedTo: { yearIdx: 2, sectionId: 'sec-3', subRow: 1 } },
+                { id: 'sp-7', name: 'SP-07 Analyse ROI Final', widthPct: 50, color: 'blue', assignedTo: null }
+            ],
+            dependencies: [
+                { from: 'sp-1', to: 'sp-3' },
+                { from: 'sp-2', to: 'sp-3' },
+                { from: 'sp-3', to: 'sp-4' },
+                { from: 'sp-4', to: 'sp-5' }
+            ]
+        };
+
+        const colorStyles = {
+            blue: { bg: 'bg-blue-600 text-white border-blue-700 shadow-blue-500/20', lightBg: 'bg-blue-50 text-blue-700 border-blue-200' },
+            emerald: { bg: 'bg-emerald-600 text-white border-emerald-700 shadow-emerald-500/20', lightBg: 'bg-emerald-50 text-emerald-700 border-emerald-200' },
+            amber: { bg: 'bg-amber-600 text-white border-amber-700 shadow-amber-500/20', lightBg: 'bg-amber-50 text-amber-700 border-amber-200' },
+            purple: { bg: 'bg-purple-600 text-white border-purple-700 shadow-purple-500/20', lightBg: 'bg-purple-50 text-purple-700 border-purple-200' },
+            rose: { bg: 'bg-rose-600 text-white border-rose-700 shadow-rose-500/20', lightBg: 'bg-rose-50 text-rose-700 border-rose-200' },
+            cyan: { bg: 'bg-cyan-600 text-white border-cyan-700 shadow-cyan-500/20', lightBg: 'bg-cyan-50 text-cyan-700 border-cyan-200' }
+        };
+
+        window.onload = function() {
+            renderApp();
+            window.addEventListener('resize', drawArrows);
+            window.addEventListener('beforeprint', () => { drawArrows(); });
+            window.addEventListener('afterprint', () => { drawArrows(); });
+            
+            const ganttMatrix = document.getElementById('gantt-matrix');
+            if (ganttMatrix) {
+                ganttMatrix.addEventListener('scroll', drawArrows);
+            }
+        };
+
+        function renderApp() {
+            renderBacklog();
+            renderGanttMatrix();
+            setTimeout(drawArrows, 10);
+        }
+
+        function renderBacklog() {
+            const container = document.getElementById('unassigned-container');
+            const countBadge = document.getElementById('backlog-count');
+            if (!container) return;
+
+            const unassigned = appData.subprojects.filter(s => !s.assignedTo);
+            if (countBadge) countBadge.textContent = unassigned.length;
+
+            if (unassigned.length === 0) {
+                container.innerHTML = `
+                    <span class="text-slate-400 text-xs italic">Tous les blocs sont placés. Glissez un bloc ici pour le désassigner.</span>
+                `;
+                return;
+            }
+
+            let html = '';
+            unassigned.forEach(sp => {
+                const style = colorStyles[sp.color] || colorStyles.blue;
+                html += `
+                    <div draggable="true" ondragstart="handleDragStart(event, '${sp.id}')" 
+                         class="subproject-card bg-white border border-slate-200 rounded-lg px-2.5 py-1.5 shadow-sm hover:border-blue-400 flex items-center gap-2 group">
+                        <div class="flex items-center space-x-2 overflow-hidden">
+                            <span class="w-2.5 h-2.5 rounded-full ${style.bg.split(' ')[0]} flex-shrink-0"></span>
+                            <span class="text-xs font-semibold text-slate-800 truncate">${sp.name}</span>
+                        </div>
+                        <div class="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition">
+                            <button onclick="deleteSubProject(event, '${sp.id}')" class="text-slate-400 hover:text-rose-600 p-1" title="Supprimer">
+                                <i class="fa-solid fa-trash-can text-xs"></i>
+                            </button>
+                            <i class="fa-solid fa-grip-vertical text-slate-300 text-xs cursor-grab"></i>
+                        </div>
+                    </div>
+                `;
+            });
+            container.innerHTML = html;
+        }
+
+        function renderGanttMatrix() {
+            const matrix = document.getElementById('gantt-matrix');
+            if (!matrix) return;
+
+            const yearsCount = appData.years.length;
+
+            let html = `
+                <div class="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
+                    <div class="grid bg-slate-100 border-b border-slate-200" style="grid-template-columns: 220px repeat(${yearsCount}, 1fr);">
+                        <div class="p-3 text-xs font-bold text-slate-600 uppercase tracking-wider border-r border-slate-200 flex items-center">
+                            Sections
+                        </div>
+            `;
+
+            appData.years.forEach((yr, yIdx) => {
+                html += `
+                    <div class="p-3 text-center border-r border-slate-200 last:border-r-0 flex items-center justify-between group/yr">
+                        <span class="text-xs font-bold text-slate-700">${yr}</span>
+                        <button onclick="removeYear(${yIdx})" class="text-slate-400 hover:text-rose-600 opacity-0 group-hover/yr:opacity-100 transition p-1 no-print" title="Supprimer cette année">
+                            <i class="fa-solid fa-xmark text-xs"></i>
+                        </button>
+                    </div>
+                `;
+            });
+            html += `</div>`;
+
+            appData.sections.forEach((sec, sIdx) => {
+                html += `
+                    <div class="grid border-b border-slate-200 last:border-b-0" style="grid-template-columns: 220px repeat(${yearsCount}, 1fr);">
+                        <div class="p-3 bg-slate-50/70 border-r border-slate-200 flex flex-col justify-between group/sec">
+                            <input type="text" value="${sec.name}" onchange="updateSectionName('${sec.id}', this.value)" class="text-xs font-bold text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-blue-500 focus:outline-none py-0.5">
+                            <div class="flex items-center justify-between mt-2">
+                                <span class="text-[10px] text-slate-400 font-medium">Section ${sIdx + 1}</span>
+                                <button onclick="removeSection('${sec.id}')" class="text-slate-400 hover:text-rose-600 opacity-0 group-hover/sec:opacity-100 transition text-xs no-print" title="Supprimer la section">
+                                    <i class="fa-solid fa-trash-can"></i>
+                                </button>
+                            </div>
+                        </div>
+                `;
+
+                appData.years.forEach((yr, yIdx) => {
+                    const assignedHere = appData.subprojects.filter(sp => sp.assignedTo && sp.assignedTo.sectionId === sec.id && sp.assignedTo.yearIdx === yIdx);
+                    assignedHere.sort((a, b) => ((a.assignedTo.subRow || 0) - (b.assignedTo.subRow || 0)) || ((a.assignedTo.order || 0) - (b.assignedTo.order || 0)));
+                    const rows = [];
+                    assignedHere.forEach(sp => {
+                        const r = sp.assignedTo.subRow || 0;
+                        if (!rows.length || rows[rows.length - 1].r !== r) rows.push({ r, items: [] });
+                        rows[rows.length - 1].items.push(sp);
+                    });
+
+                    html += `
+                        <div class="p-2 border-r border-slate-200 last:border-r-0 min-h-[90px] flex flex-col space-y-1 relative transition bg-white hover:bg-slate-50/40"
+                             ondragover="allowDrop(event)" ondragleave="removeDragOver(event)" ondrop="dropToCell(event, ${yIdx}, '${sec.id}')">
+                    `;
+
+                    if (rows.length === 0) {
+                        html += `
+                            <div class="flex-1 flex items-center justify-center border border-dashed border-slate-200 rounded-lg text-slate-300 text-[11px] select-none pointer-events-none">
+                                Glisser ici
+                            </div>
+                        `;
+                    } else {
+                        rows.forEach(row => {
+                            html += `<div class="gantt-row" ondragover="allowDrop(event)" ondragleave="removeDragOver(event)" ondrop="dropToCell(event, ${yIdx}, '${sec.id}', ${row.r})">`;
+                            row.items.forEach(sp => {
+                                const style = colorStyles[sp.color] || colorStyles.blue;
+                                const widthVal = Math.min(sp.widthPct || 50, maxWidthPct(sp));
+                                html += `
+                                <div id="block-${sp.id}" draggable="true" ondragstart="handleDragStart(event, '${sp.id}')"
+                                     style="width: ${blockWidthCss(widthVal)}; margin: 0 2px; flex: 0 0 auto;"
+                                     class="gantt-bar ${style.bg} rounded-xl p-2.5 shadow-md flex items-center justify-between group cursor-grab active:cursor-grabbing border relative z-10">
+                                    
+                                    <div class="flex items-center space-x-2 overflow-hidden flex-1">
+                                        <i class="fa-solid fa-bars text-[10px] opacity-60 no-print"></i>
+                                        <span class="text-xs font-bold truncate">${sp.name}</span>
+                                    </div>
+
+                                    <div class="flex items-center space-x-1.5 flex-shrink-0 ml-2 no-print">
+                                        <button onclick="unassignSubProject('${sp.id}')" class="text-white/70 hover:text-white opacity-0 group-hover:opacity-100 transition text-[10px]" title="Remettre au backlog">
+                                            <i class="fa-solid fa-arrow-rotate-left"></i>
+                                        </button>
+                                        <button onclick="deleteSubProject(event, '${sp.id}')" class="text-white/70 hover:text-rose-200 opacity-0 group-hover:opacity-100 transition text-[10px]" title="Supprimer">
+                                            <i class="fa-solid fa-trash-can"></i>
+                                        </button>
+                                    </div>
+
+                                    <div class="absolute right-0 top-0 bottom-0 w-2.5 cursor-ew-resize hover:bg-white/30 rounded-r-xl flex items-center justify-center no-print"
+                                         onmousedown="initResize(event, '${sp.id}')" title="Glisser pour étirer">
+                                        <div class="w-0.5 h-3 bg-white/60 rounded-full"></div>
+                                    </div>
+
+                                    <div class="absolute -right-3 top-1/2 transform -translate-y-1/2 w-3 h-3 bg-indigo-500 border-2 border-white rounded-full cursor-crosshair opacity-0 group-hover:opacity-100 transition shadow no-print"
+                                         onmousedown="startConnection(event, '${sp.id}')" title="Glisser pour relier à un autre bloc"></div>
+                                </div>
+                                `;
+                            });
+                            html += `</div>`;
+                        });
+                        // zone fine pour créer une nouvelle ligne sous les blocs existants
+                        html += `<div class="new-row-zone no-print" title="Déposer ici pour une nouvelle ligne" ondragover="allowDrop(event)" ondragleave="removeDragOver(event)" ondrop="dropToCell(event, ${yIdx}, '${sec.id}', -1)"></div>`;
+                    }
+
+                    html += `</div>`;
+                });
+
+                html += `</div>`;
+            });
+
+            html += `</div>`;
+            matrix.innerHTML = html;
+        }
+
+        let tempConnection = null;
+
+        function startConnection(e, spId) {
+            e.stopPropagation();
+            e.preventDefault();
+
+            tempConnection = {
+                fromId: spId,
+                currentX: e.clientX,
+                currentY: e.clientY
+            };
+
+            function onMouseMove(moveEvent) {
+                if (!tempConnection) return;
+                tempConnection.currentX = moveEvent.clientX;
+                tempConnection.currentY = moveEvent.clientY;
+                drawArrows();
+            }
+
+            function onMouseUp(upEvent) {
+                window.removeEventListener('mousemove', onMouseMove);
+                window.removeEventListener('mouseup', onMouseUp);
+
+                const targetEl = document.elementFromPoint(upEvent.clientX, upEvent.clientY);
+                const blockTarget = targetEl ? targetEl.closest('.gantt-bar') : null;
+
+                if (blockTarget && blockTarget.id && blockTarget.id.startsWith('block-')) {
+                    const toId = blockTarget.id.replace('block-', '');
+                    if (toId !== tempConnection.fromId) {
+                        const exists = appData.dependencies.some(d => d.from === tempConnection.fromId && d.to === toId);
+                        if (!exists) {
+                            appData.dependencies.push({ from: tempConnection.fromId, to: toId });
+                            showToast('Liaison créée avec succès');
+                            renderApp();
+                        }
+                    }
+                }
+
+                tempConnection = null;
+                drawArrows();
+            }
+
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('mouseup', onMouseUp);
+        }
+
+        function drawArrows() {
+            const svg = document.getElementById('gantt-svg-overlay');
+            const containerArea = document.getElementById('gantt-printable-area');
+            const ganttMatrix = document.getElementById('gantt-matrix');
+            if (!svg || !containerArea || !ganttMatrix) return;
+
+            const containerRect = containerArea.getBoundingClientRect();
+            let svgContent = `
+                <defs>
+                    <marker id="arrowhead" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                        <polygon points="0 0, 8 3, 0 6" fill="#6366f1" />
+                    </marker>
+                    <marker id="arrowhead-temp" markerWidth="8" markerHeight="6" refX="7" refY="3" orient="auto">
+                        <polygon points="0 0, 8 3, 0 6" fill="#818cf8" />
+                    </marker>
+                </defs>
+            `;
+
+            appData.dependencies.forEach((dep, idx) => {
+                const elFrom = document.getElementById(`block-${dep.from}`);
+                const elTo = document.getElementById(`block-${dep.to}`);
+
+                if (elFrom && elTo) {
+                    const rectFrom = elFrom.getBoundingClientRect();
+                    const rectTo = elTo.getBoundingClientRect();
+
+                    const x1 = rectFrom.right - containerRect.left;
+                    const y1 = rectFrom.top + rectFrom.height / 2 - containerRect.top;
+                    const x2 = rectTo.left - containerRect.left;
+                    const y2 = rectTo.top + rectTo.height / 2 - containerRect.top;
+
+                    const dx = Math.abs(x2 - x1) * 0.5;
+                    const pathD = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+
+                    const midX = (x1 + x2) / 2;
+                    const midY = (y1 + y2) / 2;
+
+                    svgContent += `
+                        <g class="arrow-group" onclick="removeDependency(${idx})">
+                            <title>Cliquer pour supprimer cette liaison</title>
+                            <path d="${pathD}" fill="none" stroke="transparent" stroke-width="16" style="pointer-events: stroke;" />
+                            <path d="${pathD}" fill="none" stroke="#6366f1" stroke-width="2.5" stroke-dasharray="4,3" marker-end="url(#arrowhead)" class="arrow-line" style="pointer-events: none;" />
+                            <g class="arrow-del" transform="translate(${midX}, ${midY})">
+                                <circle r="11" fill="#e11d48" stroke="#fff" stroke-width="2" />
+                                <path d="M -4 -4 L 4 4 M 4 -4 L -4 4" stroke="#fff" stroke-width="2" stroke-linecap="round" />
+                            </g>
+                        </g>
+                    `;
+                }
+            });
+
+            if (tempConnection) {
+                const elFrom = document.getElementById(`block-${tempConnection.fromId}`);
+                if (elFrom) {
+                    const rectFrom = elFrom.getBoundingClientRect();
+                    const x1 = rectFrom.right - containerRect.left;
+                    const y1 = rectFrom.top + rectFrom.height / 2 - containerRect.top;
+                    const x2 = tempConnection.currentX - containerRect.left;
+                    const y2 = tempConnection.currentY - containerRect.top;
+
+                    const dx = Math.abs(x2 - x1) * 0.5;
+                    const pathD = `M ${x1} ${y1} C ${x1 + dx} ${y1}, ${x2 - dx} ${y2}, ${x2} ${y2}`;
+
+                    svgContent += `
+                        <path d="${pathD}" fill="none" stroke="#818cf8" stroke-width="2.5" stroke-dasharray="3,3" marker-end="url(#arrowhead-temp)" />
+                    `;
+                }
+            }
+
+            svg.innerHTML = svgContent;
+        }
+
+        let draggedSubProjectId = null;
+
+        function handleDragStart(e, spId) {
+            draggedSubProjectId = spId;
+            e.dataTransfer.setData('text/plain', spId);
+        }
+
+        function allowDrop(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            document.querySelectorAll('.drag-over').forEach(el => { if (el !== e.currentTarget) el.classList.remove('drag-over'); });
+            e.currentTarget.classList.add('drag-over');
+        }
+
+        function removeDragOver(e) {
+            e.currentTarget.classList.remove('drag-over');
+        }
+
+        function dropToCell(e, yearIdx, sectionId, targetRow) {
+            e.preventDefault();
+            e.stopPropagation();
+            document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
+
+            if (!draggedSubProjectId) return;
+            const sp = appData.subprojects.find(s => s.id === draggedSubProjectId);
+            if (!sp) { draggedSubProjectId = null; return; }
+
+            const others = appData.subprojects.filter(s => s.assignedTo && s.assignedTo.sectionId === sectionId && s.assignedTo.yearIdx === yearIdx && s.id !== sp.id);
+            const maxRow = others.length ? Math.max(...others.map(s => s.assignedTo.subRow || 0)) : -1;
+
+            let row, order;
+            if (targetRow === undefined || targetRow === -1 || !others.some(s => (s.assignedTo.subRow || 0) === targetRow)) {
+                // nouvelle ligne en bas de la cellule
+                row = maxRow + 1;
+                order = 0;
+            } else {
+                // même ligne : insertion selon la position horizontale de la souris
+                row = targetRow;
+                const inRow = others.filter(s => (s.assignedTo.subRow || 0) === row).sort((a, b) => (a.assignedTo.order || 0) - (b.assignedTo.order || 0));
+                let idx = inRow.length;
+                for (let i = 0; i < inRow.length; i++) {
+                    const el = document.getElementById('block-' + inRow[i].id);
+                    if (el) {
+                        const r = el.getBoundingClientRect();
+                        if (e.clientX < r.left + r.width / 2) { idx = i; break; }
+                    }
+                }
+                inRow.splice(idx, 0, sp);
+                inRow.forEach((s, i) => { if (s !== sp) s.assignedTo.order = i; });
+                order = idx;
+            }
+
+            sp.assignedTo = { yearIdx, sectionId, subRow: row, order };
+            normalizeRows();
+            renderApp();
+            showToast(`Bloc "${sp.name}" placé`);
+            draggedSubProjectId = null;
+        }
+
+        // renumérote les lignes (sans trous) et l'ordre dans chaque ligne, pour chaque cellule
+        function normalizeRows() {
+            const cells = {};
+            appData.subprojects.forEach(sp => {
+                if (!sp.assignedTo) return;
+                const k = sp.assignedTo.sectionId + '|' + sp.assignedTo.yearIdx;
+                (cells[k] = cells[k] || []).push(sp);
+            });
+            Object.values(cells).forEach(list => {
+                list.sort((a, b) => ((a.assignedTo.subRow || 0) - (b.assignedTo.subRow || 0)) || ((a.assignedTo.order || 0) - (b.assignedTo.order || 0)));
+                let prevRow = null, rowIdx = -1, ord = 0;
+                list.forEach(sp => {
+                    const r = sp.assignedTo.subRow || 0;
+                    if (r !== prevRow) { rowIdx++; ord = 0; prevRow = r; }
+                    sp.assignedTo.subRow = rowIdx;
+                    sp.assignedTo.order = ord++;
+                });
+            });
+        }
+
+        function dropToBacklog(e) {
+            e.preventDefault();
+            const cell = e.currentTarget;
+            cell.classList.remove('drag-over');
+
+            if (!draggedSubProjectId) return;
+            const sp = appData.subprojects.find(s => s.id === draggedSubProjectId);
+            if (sp) {
+                sp.assignedTo = null;
+                renderApp();
+                showToast(`Bloc "${sp.name}" remis au backlog`);
+            }
+            draggedSubProjectId = null;
+        }
+
+        function unassignSubProject(spId) {
+            const sp = appData.subprojects.find(s => s.id === spId);
+            if (sp) {
+                sp.assignedTo = null;
+                normalizeRows();
+                renderApp();
+                showToast('Bloc désassigné');
+            }
+        }
+
+        // largeur en % d'une cellule-année ; 100 = 1 an, 300 = 3 ans (max, limité par les années restantes à droite)
+        function maxWidthPct(sp) {
+            const left = appData.years.length - (sp.assignedTo ? sp.assignedTo.yearIdx : 0);
+            return Math.max(100, Math.min(3, left) * 100);
+        }
+
+        // compense le padding des cellules (16px) pour qu'un multiple de 100 % tombe pile sur une limite d'année
+        function blockWidthCss(pct) {
+            return `calc(${pct}% + ${(pct / 100 - 1) * 16 - 4}px)`;
+        }
+
+        function initResize(e, spId) {
+            e.stopPropagation();
+            e.preventDefault();
+
+            const sp = appData.subprojects.find(s => s.id === spId);
+            if (!sp) return;
+
+            const startX = e.clientX;
+            const startWidth = Math.min(sp.widthPct || 50, maxWidthPct(sp));
+            const rowEl = document.getElementById(`block-${spId}`).parentElement;
+            const rowW = Math.max(rowEl.clientWidth, 1);
+            const maxW = maxWidthPct(sp);
+
+            function onMouseMove(moveEvent) {
+                let newWidth = startWidth + ((moveEvent.clientX - startX) / rowW) * 100;
+                // aimantation sur 1 / 2 / 3 ans, sinon pas de 5 %
+                const nearestYear = Math.round(newWidth / 100) * 100;
+                newWidth = (nearestYear >= 100 && Math.abs(newWidth - nearestYear) < 8) ? nearestYear : Math.round(newWidth / 5) * 5;
+                newWidth = Math.max(20, Math.min(maxW, newWidth));
+                sp.widthPct = newWidth;
+
+                const blockEl = document.getElementById(`block-${spId}`);
+                if (blockEl) blockEl.style.width = blockWidthCss(newWidth);
+                drawArrows();
+            }
+
+            function onMouseUp() {
+                window.removeEventListener('mousemove', onMouseMove);
+                window.removeEventListener('mouseup', onMouseUp);
+                renderApp();
+            }
+
+            window.addEventListener('mousemove', onMouseMove);
+            window.addEventListener('mouseup', onMouseUp);
+        }
+
+        function handleAddSubproject(e) {
+            e.preventDefault();
+            const nameInput = document.getElementById('spName');
+            const colorInput = document.getElementById('spColor');
+
+            const newId = 'sp-' + Date.now();
+            appData.subprojects.push({
+                id: newId,
+                name: nameInput.value.trim(),
+                widthPct: 50,
+                color: colorInput.value,
+                assignedTo: null
+            });
+
+            nameInput.value = '';
+            renderApp();
+            showToast('Nouveau bloc créé dans le backlog');
+        }
+
+        function deleteSubProject(e, spId) {
+            e.stopPropagation();
+            appData.subprojects = appData.subprojects.filter(s => s.id !== spId);
+            appData.dependencies = appData.dependencies.filter(d => d.from !== spId && d.to !== spId);
+            normalizeRows();
+            renderApp();
+            showToast('Bloc supprimé');
+        }
+
+        function removeDependency(idx) {
+            appData.dependencies.splice(idx, 1);
+            renderApp();
+            showToast('Liaison supprimée');
+        }
+
+        function updateSectionName(secId, newName) {
+            const sec = appData.sections.find(s => s.id === secId);
+            if (sec && newName.trim()) {
+                sec.name = newName.trim();
+                showToast('Nom de section mis à jour');
+            }
+        }
+
+        function addSection() {
+            const newId = 'sec-' + Date.now();
+            appData.sections.push({ id: newId, name: 'Nouvelle Section' });
+            renderApp();
+            showToast('Nouvelle section ajoutée');
+        }
+
+        function removeSection(secId) {
+            if (appData.sections.length <= 1) {
+                showToast('Il faut conserver au moins une section', 'error');
+                return;
+            }
+            appData.sections = appData.sections.filter(s => s.id !== secId);
+            appData.subprojects.forEach(sp => {
+                if (sp.assignedTo && sp.assignedTo.sectionId === secId) sp.assignedTo = null;
+            });
+            renderApp();
+            showToast('Section supprimée');
+        }
+
+        function addYearColumn() {
+            const lastYear = appData.years.length > 0 ? appData.years[appData.years.length - 1] : currentYearNum;
+            appData.years.push(lastYear + 1);
+            renderApp();
+            showToast('Année ajoutée');
+        }
+
+        function removeYear(yIdx) {
+            if (appData.years.length <= 1) {
+                showToast('Il faut conserver au moins une année', 'error');
+                return;
+            }
+            appData.years.splice(yIdx, 1);
+            appData.subprojects.forEach(sp => {
+                if (sp.assignedTo) {
+                    if (sp.assignedTo.yearIdx === yIdx) sp.assignedTo = null;
+                    else if (sp.assignedTo.yearIdx > yIdx) sp.assignedTo.yearIdx--;
+                }
+            });
+            renderApp();
+            showToast('Année supprimée');
+        }
+
+        function buildPrintHtml() {
+            drawArrows();
+            const area = document.getElementById('gantt-printable-area');
+            const w = Math.ceil(area.getBoundingClientRect().width);
+            const clone = area.cloneNode(true);
+            clone.querySelectorAll('.no-print, .arrow-del, input').forEach(el => {
+                if (el.tagName === 'INPUT') {
+                    const span = document.createElement('div');
+                    span.className = el.className;
+                    span.textContent = el.value;
+                    el.replaceWith(span);
+                } else el.remove();
+            });
+            clone.querySelectorAll('.arrow-group').forEach(g => g.removeAttribute('onclick'));
+            clone.style.cssText = 'width:' + w + 'px;border:none;box-shadow:none;position:relative;overflow:visible;';
+            const m = clone.querySelector('#gantt-matrix');
+            if (m) m.style.overflow = 'visible';
+            return `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Roadmap</title>
+<script src="https://cdn.tailwindcss.com"><\/script>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+<style>
+body{font-family:'Inter',sans-serif;background:#fff;margin:0;padding:12px;-webkit-print-color-adjust:exact;print-color-adjust:exact}
+.gantt-bar{position:relative}
+.gantt-row{display:flex;flex-wrap:nowrap;gap:0;align-items:stretch;min-height:44px}
+#gantt-svg-overlay{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;overflow:visible;z-index:20}
+@page{size:landscape;margin:1cm}
+</style></head><body>${clone.outerHTML}
+<script>window.addEventListener('load',function(){setTimeout(function(){window.print()},1500)});<\/script>
+</body></html>`;
+        }
+
+        function triggerPrint() {
+            // Dans un aperçu intégré (iframe sandboxée), window.print() est bloqué :
+            // on ouvre alors une page imprimable dans un nouvel onglet.
+            const embedded = window.self !== window.top;
+            if (!embedded) {
+                drawArrows();
+                try { window.print(); return; } catch (err) { /* repli ci-dessous */ }
+            }
+            const html = buildPrintHtml();
+            const url = URL.createObjectURL(new Blob([html], { type: 'text/html' }));
+            const win = window.open(url, '_blank');
+            if (!win) {
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = 'roadmap-imprimable.html';
+                document.body.appendChild(a);
+                a.click();
+                a.remove();
+                showToast("Pop-up bloqué : fichier téléchargé, ouvrez-le puis Ctrl/Cmd+P", 'error');
+            } else {
+                showToast("Page d'impression ouverte dans un nouvel onglet");
+            }
+        }
+
+        let toastTimer = null;
+        function showToast(message, type = 'success') {
+            const toast = document.getElementById('toast');
+            const toastMsg = document.getElementById('toast-message');
+            const toastIcon = document.getElementById('toast-icon');
+
+            toastMsg.textContent = message;
+            if (type === 'error') {
+                toastIcon.className = 'fa-solid fa-circle-exclamation text-rose-400 text-lg';
+            } else {
+                toastIcon.className = 'fa-solid fa-circle-check text-emerald-400 text-lg';
+            }
+
+            toast.classList.remove('translate-y-20', 'opacity-0');
+            
+            if (toastTimer) clearTimeout(toastTimer);
+            toastTimer = setTimeout(() => {
+                toast.classList.add('translate-y-20', 'opacity-0');
+            }, 3000);
+        }
+    </script>
+</body>
+</html>
