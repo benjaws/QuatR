@@ -1,9 +1,9 @@
 <!DOCTYPE html>
-<html lang="fr" class="h-full">
+<html lang="en" class="h-full">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Roadmap - Gantt Simplifié</title>
+    <title>Roadmap - Simplified Gantt</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -95,7 +95,7 @@
         <div class="flex items-center space-x-3">
             <button onclick="triggerPrint()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white text-sm font-semibold rounded-lg shadow-sm transition flex items-center space-x-2">
                 <i class="fa-solid fa-file-pdf"></i>
-                <span>Générer Vue PDF / Imprimer</span>
+                <span>Export PDF / Print</span>
             </button>
         </div>
     </header>
@@ -105,7 +105,7 @@
         <!-- Notification Toast -->
         <div id="toast" class="fixed bottom-5 right-5 z-50 bg-slate-900 text-white px-4 py-3 rounded-xl shadow-xl flex items-center space-x-3 transform translate-y-20 opacity-0 transition-all duration-300">
             <i id="toast-icon" class="fa-solid fa-circle-check text-emerald-400 text-lg"></i>
-            <span id="toast-message" class="text-sm font-medium">Action réussie</span>
+            <span id="toast-message" class="text-sm font-medium">Done</span>
         </div>
 
         <div class="flex flex-col gap-4 flex-1 overflow-hidden">
@@ -113,22 +113,22 @@
             <div class="bg-white rounded-2xl border border-slate-200 px-4 py-3 no-print shadow-sm space-y-2">
                 <form id="addSubprojectForm" onsubmit="handleAddSubproject(event)" class="flex flex-wrap items-center gap-2">
                     <i class="fa-solid fa-boxes-stacked text-blue-600 text-sm"></i>
-                    <input type="text" id="spName" placeholder="Nom du bloc, ex: SP-01 Refonte API" required class="flex-1 min-w-[200px] text-xs px-3 py-2 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
+                    <input type="text" id="spName" placeholder="Block name, e.g. SP-01 API Redesign" required class="flex-1 min-w-[200px] text-xs px-3 py-2 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
                     <select id="spColor" class="text-xs px-2 py-2 bg-white border border-slate-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500">
-                        <option value="blue">Bleu</option>
-                        <option value="emerald">Vert</option>
-                        <option value="amber">Ambre</option>
-                        <option value="purple">Violet</option>
-                        <option value="rose">Rose</option>
+                        <option value="blue">Blue</option>
+                        <option value="emerald">Green</option>
+                        <option value="amber">Amber</option>
+                        <option value="purple">Purple</option>
+                        <option value="rose">Pink</option>
                         <option value="cyan">Cyan</option>
                     </select>
                     <button type="submit" class="bg-slate-800 hover:bg-slate-900 text-white font-medium text-xs px-3.5 py-2 rounded-lg transition flex items-center space-x-1.5">
                         <i class="fa-solid fa-plus"></i>
-                        <span>Ajouter un bloc</span>
+                        <span>Add block</span>
                     </button>
                     <button type="button" onclick="addYearColumn()" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-medium rounded-lg transition flex items-center space-x-1.5">
                         <i class="fa-solid fa-calendar-plus"></i>
-                        <span>Ajouter une année</span>
+                        <span>Add year</span>
                     </button>
                 </form>
 
@@ -150,7 +150,7 @@
                 <div class="pt-4 mt-4 border-t border-slate-200 flex items-center justify-between no-print relative z-30">
                     <button onclick="addSection()" class="px-3.5 py-2 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs font-semibold rounded-lg transition flex items-center space-x-2">
                         <i class="fa-solid fa-plus"></i>
-                        <span>Ajouter une nouvelle section</span>
+                        <span>Add new section</span>
                     </button>
                 </div>
 
@@ -164,18 +164,18 @@
         let appData = {
             years: [currentYearNum, currentYearNum + 1, currentYearNum + 2],
             sections: [
-                { id: 'sec-1', name: 'Phase 1 : Cadrage & Architecture' },
-                { id: 'sec-2', name: 'Phase 2 : Core Development & API' },
-                { id: 'sec-3', name: 'Phase 3 : Déploiement & Run' }
+                { id: 'sec-1', name: 'Phase 1: Scoping & Architecture' },
+                { id: 'sec-2', name: 'Phase 2: Core Development & API' },
+                { id: 'sec-3', name: 'Phase 3: Deployment & Run' }
             ],
             subprojects: [
-                { id: 'sp-1', name: 'SP-01 Audit & Cadrage', widthPct: 50, color: 'blue', assignedTo: { yearIdx: 0, sectionId: 'sec-1', subRow: 0 } },
-                { id: 'sp-2', name: 'SP-02 Specs Techniques', widthPct: 50, color: 'amber', assignedTo: { yearIdx: 0, sectionId: 'sec-1', subRow: 1 } },
-                { id: 'sp-3', name: 'SP-03 Développement Socle V1', widthPct: 50, color: 'purple', assignedTo: { yearIdx: 1, sectionId: 'sec-2', subRow: 0 } },
-                { id: 'sp-4', name: 'SP-04 Tests & QA Intégration', widthPct: 50, color: 'emerald', assignedTo: { yearIdx: 2, sectionId: 'sec-2', subRow: 0 } },
+                { id: 'sp-1', name: 'SP-01 Audit & Scoping', widthPct: 50, color: 'blue', assignedTo: { yearIdx: 0, sectionId: 'sec-1', subRow: 0 } },
+                { id: 'sp-2', name: 'SP-02 Technical Specs', widthPct: 50, color: 'amber', assignedTo: { yearIdx: 0, sectionId: 'sec-1', subRow: 1 } },
+                { id: 'sp-3', name: 'SP-03 Core Development V1', widthPct: 50, color: 'purple', assignedTo: { yearIdx: 1, sectionId: 'sec-2', subRow: 0 } },
+                { id: 'sp-4', name: 'SP-04 Integration Tests & QA', widthPct: 50, color: 'emerald', assignedTo: { yearIdx: 2, sectionId: 'sec-2', subRow: 0 } },
                 { id: 'sp-5', name: 'SP-05 Migration & Rollout', widthPct: 50, color: 'rose', assignedTo: { yearIdx: 2, sectionId: 'sec-3', subRow: 0 } },
-                { id: 'sp-6', name: 'SP-06 Support & Stabilisation', widthPct: 50, color: 'cyan', assignedTo: { yearIdx: 2, sectionId: 'sec-3', subRow: 1 } },
-                { id: 'sp-7', name: 'SP-07 Analyse ROI Final', widthPct: 50, color: 'blue', assignedTo: null }
+                { id: 'sp-6', name: 'SP-06 Support & Stabilization', widthPct: 50, color: 'cyan', assignedTo: { yearIdx: 2, sectionId: 'sec-3', subRow: 1 } },
+                { id: 'sp-7', name: 'SP-07 Final ROI Analysis', widthPct: 50, color: 'blue', assignedTo: null }
             ],
             dependencies: [
                 { from: 'sp-1', to: 'sp-3' },
@@ -222,7 +222,7 @@
 
             if (unassigned.length === 0) {
                 container.innerHTML = `
-                    <span class="text-slate-400 text-xs italic">Tous les blocs sont placés. Glissez un bloc ici pour le désassigner.</span>
+                    <span class="text-slate-400 text-xs italic">All blocks are placed. Drag a block here to unassign it.</span>
                 `;
                 return;
             }
@@ -238,7 +238,7 @@
                             <span class="text-xs font-semibold text-slate-800 truncate">${sp.name}</span>
                         </div>
                         <div class="flex items-center space-x-1 opacity-0 group-hover:opacity-100 transition">
-                            <button onclick="deleteSubProject(event, '${sp.id}')" class="text-slate-400 hover:text-rose-600 p-1" title="Supprimer">
+                            <button onclick="deleteSubProject(event, '${sp.id}')" class="text-slate-400 hover:text-rose-600 p-1" title="Delete">
                                 <i class="fa-solid fa-trash-can text-xs"></i>
                             </button>
                             <i class="fa-solid fa-grip-vertical text-slate-300 text-xs cursor-grab"></i>
@@ -267,7 +267,7 @@
                 html += `
                     <div class="p-3 text-center border-r border-slate-200 last:border-r-0 flex items-center justify-between group/yr">
                         <span class="text-xs font-bold text-slate-700">${yr}</span>
-                        <button onclick="removeYear(${yIdx})" class="text-slate-400 hover:text-rose-600 opacity-0 group-hover/yr:opacity-100 transition p-1 no-print" title="Supprimer cette année">
+                        <button onclick="removeYear(${yIdx})" class="text-slate-400 hover:text-rose-600 opacity-0 group-hover/yr:opacity-100 transition p-1 no-print" title="Delete this year">
                             <i class="fa-solid fa-xmark text-xs"></i>
                         </button>
                     </div>
@@ -282,7 +282,7 @@
                             <input type="text" value="${sec.name}" onchange="updateSectionName('${sec.id}', this.value)" class="text-xs font-bold text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-blue-500 focus:outline-none py-0.5">
                             <div class="flex items-center justify-between mt-2">
                                 <span class="text-[10px] text-slate-400 font-medium">Section ${sIdx + 1}</span>
-                                <button onclick="removeSection('${sec.id}')" class="text-slate-400 hover:text-rose-600 opacity-0 group-hover/sec:opacity-100 transition text-xs no-print" title="Supprimer la section">
+                                <button onclick="removeSection('${sec.id}')" class="text-slate-400 hover:text-rose-600 opacity-0 group-hover/sec:opacity-100 transition text-xs no-print" title="Delete this section">
                                     <i class="fa-solid fa-trash-can"></i>
                                 </button>
                             </div>
@@ -307,7 +307,7 @@
                     if (rows.length === 0) {
                         html += `
                             <div class="flex-1 flex items-center justify-center border border-dashed border-slate-200 rounded-lg text-slate-300 text-[11px] select-none pointer-events-none">
-                                Glisser ici
+                                Drop here
                             </div>
                         `;
                     } else {
@@ -327,28 +327,28 @@
                                     </div>
 
                                     <div class="absolute left-0 top-full pt-1 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition no-print z-30">
-                                        <button onclick="unassignSubProject('${sp.id}')" class="h-8 px-2.5 bg-white text-slate-700 hover:bg-slate-100 border border-slate-300 rounded-lg shadow-md text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap" title="Remettre au backlog">
+                                        <button onclick="unassignSubProject('${sp.id}')" class="h-8 px-2.5 bg-white text-slate-700 hover:bg-slate-100 border border-slate-300 rounded-lg shadow-md text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap" title="Move back to backlog">
                                             <i class="fa-solid fa-arrow-rotate-left"></i><span>Backlog</span>
                                         </button>
-                                        <button onclick="deleteSubProject(event, '${sp.id}')" class="h-8 px-2.5 bg-white text-rose-600 hover:bg-rose-50 border border-rose-300 rounded-lg shadow-md text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap" title="Supprimer">
-                                            <i class="fa-solid fa-trash-can"></i><span>Supprimer</span>
+                                        <button onclick="deleteSubProject(event, '${sp.id}')" class="h-8 px-2.5 bg-white text-rose-600 hover:bg-rose-50 border border-rose-300 rounded-lg shadow-md text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap" title="Delete">
+                                            <i class="fa-solid fa-trash-can"></i><span>Delete</span>
                                         </button>
                                     </div>
 
                                     <div class="absolute right-0 top-0 bottom-0 w-2.5 cursor-ew-resize hover:bg-white/30 rounded-r-xl flex items-center justify-center no-print"
-                                         onmousedown="initResize(event, '${sp.id}')" title="Glisser pour étirer">
+                                         onmousedown="initResize(event, '${sp.id}')" title="Drag to resize">
                                         <div class="w-0.5 h-3 bg-white/60 rounded-full"></div>
                                     </div>
 
                                     <div class="absolute -right-3.5 top-1/2 transform -translate-y-1/2 w-4 h-4 bg-indigo-500 border-2 border-white rounded-full cursor-crosshair opacity-0 group-hover:opacity-100 transition shadow no-print"
-                                         onmousedown="startConnection(event, '${sp.id}')" title="Glisser pour relier à un autre bloc"></div>
+                                         onmousedown="startConnection(event, '${sp.id}')" title="Drag to link to another block"></div>
                                 </div>
                                 `;
                             });
                             html += `</div>`;
                         });
                         // zone fine pour créer une nouvelle ligne sous les blocs existants
-                        html += `<div class="new-row-zone no-print" title="Déposer ici pour une nouvelle ligne" ondragover="allowDrop(event)" ondragleave="removeDragOver(event)" ondrop="dropToCell(event, ${yIdx}, '${sec.id}', -1)"></div>`;
+                        html += `<div class="new-row-zone no-print" title="Drop here for a new row" ondragover="allowDrop(event)" ondragleave="removeDragOver(event)" ondrop="dropToCell(event, ${yIdx}, '${sec.id}', -1)"></div>`;
                     }
 
                     html += `</div>`;
@@ -393,7 +393,7 @@
                         const exists = appData.dependencies.some(d => d.from === tempConnection.fromId && d.to === toId);
                         if (!exists) {
                             appData.dependencies.push({ from: tempConnection.fromId, to: toId });
-                            showToast('Liaison créée avec succès');
+                            showToast('Link created');
                             renderApp();
                         }
                     }
@@ -446,7 +446,7 @@
 
                     svgContent += `
                         <g class="arrow-group" onclick="removeDependency(${idx})">
-                            <title>Cliquer pour supprimer cette liaison</title>
+                            <title>Click to delete this link</title>
                             <path d="${pathD}" fill="none" stroke="transparent" stroke-width="16" style="pointer-events: stroke;" />
                             <path d="${pathD}" fill="none" stroke="#6366f1" stroke-width="2.5" stroke-dasharray="4,3" marker-end="url(#arrowhead)" class="arrow-line" style="pointer-events: none;" />
                             <g class="arrow-del" transform="translate(${midX}, ${midY})">
@@ -534,7 +534,7 @@
             sp.assignedTo = { yearIdx, sectionId, subRow: row, order };
             normalizeRows();
             renderApp();
-            showToast(`Bloc "${sp.name}" placé`);
+            showToast(`Block "${sp.name}" placed`);
             draggedSubProjectId = null;
         }
 
@@ -568,7 +568,7 @@
             if (sp) {
                 sp.assignedTo = null;
                 renderApp();
-                showToast(`Bloc "${sp.name}" remis au backlog`);
+                showToast(`Block "${sp.name}" moved back to backlog`);
             }
             draggedSubProjectId = null;
         }
@@ -579,7 +579,7 @@
                 sp.assignedTo = null;
                 normalizeRows();
                 renderApp();
-                showToast('Bloc désassigné');
+                showToast('Block unassigned');
             }
         }
 
@@ -646,7 +646,7 @@
 
             nameInput.value = '';
             renderApp();
-            showToast('Nouveau bloc créé dans le backlog');
+            showToast('New block added to the backlog');
         }
 
         function deleteSubProject(e, spId) {
@@ -655,33 +655,33 @@
             appData.dependencies = appData.dependencies.filter(d => d.from !== spId && d.to !== spId);
             normalizeRows();
             renderApp();
-            showToast('Bloc supprimé');
+            showToast('Block deleted');
         }
 
         function removeDependency(idx) {
             appData.dependencies.splice(idx, 1);
             renderApp();
-            showToast('Liaison supprimée');
+            showToast('Link deleted');
         }
 
         function updateSectionName(secId, newName) {
             const sec = appData.sections.find(s => s.id === secId);
             if (sec && newName.trim()) {
                 sec.name = newName.trim();
-                showToast('Nom de section mis à jour');
+                showToast('Section name updated');
             }
         }
 
         function addSection() {
             const newId = 'sec-' + Date.now();
-            appData.sections.push({ id: newId, name: 'Nouvelle Section' });
+            appData.sections.push({ id: newId, name: 'New Section' });
             renderApp();
-            showToast('Nouvelle section ajoutée');
+            showToast('New section added');
         }
 
         function removeSection(secId) {
             if (appData.sections.length <= 1) {
-                showToast('Il faut conserver au moins une section', 'error');
+                showToast('At least one section is required', 'error');
                 return;
             }
             appData.sections = appData.sections.filter(s => s.id !== secId);
@@ -689,19 +689,19 @@
                 if (sp.assignedTo && sp.assignedTo.sectionId === secId) sp.assignedTo = null;
             });
             renderApp();
-            showToast('Section supprimée');
+            showToast('Section deleted');
         }
 
         function addYearColumn() {
             const lastYear = appData.years.length > 0 ? appData.years[appData.years.length - 1] : currentYearNum;
             appData.years.push(lastYear + 1);
             renderApp();
-            showToast('Année ajoutée');
+            showToast('Year added');
         }
 
         function removeYear(yIdx) {
             if (appData.years.length <= 1) {
-                showToast('Il faut conserver au moins une année', 'error');
+                showToast('At least one year is required', 'error');
                 return;
             }
             appData.years.splice(yIdx, 1);
@@ -712,7 +712,7 @@
                 }
             });
             renderApp();
-            showToast('Année supprimée');
+            showToast('Year deleted');
         }
 
         function buildPrintHtml() {
@@ -732,7 +732,7 @@
             clone.style.cssText = 'width:' + w + 'px;border:none;box-shadow:none;position:relative;overflow:visible;';
             const m = clone.querySelector('#gantt-matrix');
             if (m) m.style.overflow = 'visible';
-            return `<!DOCTYPE html><html lang="fr"><head><meta charset="UTF-8"><title>Roadmap</title>
+            return `<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><title>Roadmap</title>
 <script src="https://cdn.tailwindcss.com"><\/script>
 <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
@@ -761,13 +761,13 @@ body{font-family:'Inter',sans-serif;background:#fff;margin:0;padding:12px;-webki
             if (!win) {
                 const a = document.createElement('a');
                 a.href = url;
-                a.download = 'roadmap-imprimable.html';
+                a.download = 'roadmap-printable.html';
                 document.body.appendChild(a);
                 a.click();
                 a.remove();
-                showToast("Pop-up bloqué : fichier téléchargé, ouvrez-le puis Ctrl/Cmd+P", 'error');
+                showToast("Pop-up blocked: file downloaded, open it then press Ctrl/Cmd+P", 'error');
             } else {
-                showToast("Page d'impression ouverte dans un nouvel onglet");
+                showToast("Print page opened in a new tab");
             }
         }
 

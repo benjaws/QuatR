@@ -1,37 +1,37 @@
 # QuatR
 
-**Une roadmap Gantt simplifiée, pensée pour planifier des projets d'expérimentation animale autour des 3R : Remplacer, Réduire, Raffiner.**
+**A simplified Gantt roadmap for planning animal experimentation projects around the 3Rs: Replace, Reduce, Refine.**
 
-Un seul fichier HTML, sans installation, sans serveur, sans compte. On l'ouvre dans un navigateur et on construit sa roadmap par glisser-déposer.
+A single HTML file: no install, no server, no account. Open it in a browser and build your roadmap by drag and drop.
 
-**[Essayer en ligne](https://benjaws.github.io/quatr/)**
+**[Try it online](https://benjaws.github.io/quatr/)**
 
-![Aperçu de QuatR](docs/screenshot.png)
+![QuatR preview](docs/screenshot.png)
 
-## Fonctionnalités
+## Features
 
-- **Blocs par glisser-déposer** : créez un bloc, puis déposez-le dans la section et l'année voulues.
-- **Backlog** : les blocs pas encore planifiés attendent sous la barre de création. Glissez-les vers le Gantt, ou remettez-les au backlog.
-- **Blocs côte à côte** : plusieurs blocs peuvent partager la même ligne dans une année.
-- **Durée de 1 à 3 ans** : étirez un bloc par sa poignée de droite. Il se cale sur 1, 2 ou 3 ans.
-- **Flèches de dépendance** : tirez depuis le point violet d'un bloc jusqu'à un autre. Cliquez sur une flèche pour la supprimer.
-- **Sections et années modifiables** : renommez les sections, ajoutez ou retirez des sections et des années.
-- **Export PDF / impression** : mise en page paysage prête à imprimer. Dans un aperçu intégré, une page imprimable s'ouvre dans un nouvel onglet.
+- **Drag-and-drop blocks**: create a block, then drop it into the section and year you want.
+- **Backlog**: blocks not yet scheduled wait under the creation bar. Drag them onto the Gantt, or send them back to the backlog.
+- **Side-by-side blocks**: several blocks can share the same row within a year.
+- **1 to 3 years long**: stretch a block with its right-hand handle. It snaps to 1, 2 or 3 years.
+- **Dependency arrows**: drag from a block's purple dot to another block. Click an arrow to delete it.
+- **Editable sections and years**: rename sections, add or remove sections and years.
+- **PDF export / print**: landscape layout ready to print. In an embedded preview, a printable page opens in a new tab.
 
-## Utilisation
+## Usage
 
-1. Ouvrez `index.html` dans votre navigateur (Chrome, Edge, Firefox, Safari).
-2. Saisissez un nom, choisissez une couleur, cliquez sur **Ajouter un bloc**.
-3. Glissez le bloc dans le Gantt.
-4. Étirez-le, reliez-le aux autres, puis cliquez sur **Générer Vue PDF / Imprimer**.
+1. Open `index.html` in your browser (Chrome, Edge, Firefox, Safari).
+2. Type a name, pick a color, click **Add block**.
+3. Drag the block onto the Gantt.
+4. Stretch it, link it to other blocks, then click **Export PDF / Print**.
 
-Une connexion internet est nécessaire au chargement : Tailwind CSS, Font Awesome et la police Inter sont chargés depuis des CDN.
+An internet connection is required on load: Tailwind CSS, Font Awesome and the Inter font are loaded from CDNs.
 
-## Limites actuelles
+## Current limitations
 
-- Les données ne sont pas sauvegardées : rechargez la page et la roadmap revient à l'exemple de départ.
-- Pas d'export des données (JSON) pour l'instant.
+- Data is not saved: reload the page and the roadmap goes back to the starting example.
+- No data export (JSON) yet.
 
-## Licence
+## License
 
 [MIT](LICENSE)
