@@ -70,6 +70,7 @@
         .subproject-card:active { cursor: grabbing; }
         .drag-over { background-color: rgba(59, 130, 246, 0.1) !important; border: 2px dashed #3b82f6 !important; }
         .gantt-bar { position: relative; user-select: none; }
+        .gantt-bar:hover { z-index: 40 !important; }
         .gantt-row { display: flex; flex-wrap: nowrap; gap: 0; align-items: stretch; min-height: 44px; border-radius: 10px; }
         .new-row-zone { height: 14px; border-radius: 8px; flex-shrink: 0; }
         .new-row-zone.drag-over { height: 36px; }
@@ -325,12 +326,12 @@
                                         <span class="text-xs font-bold truncate">${sp.name}</span>
                                     </div>
 
-                                    <div class="flex items-center space-x-1.5 flex-shrink-0 ml-2 no-print">
-                                        <button onclick="unassignSubProject('${sp.id}')" class="text-white/70 hover:text-white opacity-0 group-hover:opacity-100 transition text-[10px]" title="Remettre au backlog">
-                                            <i class="fa-solid fa-arrow-rotate-left"></i>
+                                    <div class="absolute left-0 top-full pt-1 flex items-center gap-1.5 opacity-0 group-hover:opacity-100 transition no-print z-30">
+                                        <button onclick="unassignSubProject('${sp.id}')" class="h-8 px-2.5 bg-white text-slate-700 hover:bg-slate-100 border border-slate-300 rounded-lg shadow-md text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap" title="Remettre au backlog">
+                                            <i class="fa-solid fa-arrow-rotate-left"></i><span>Backlog</span>
                                         </button>
-                                        <button onclick="deleteSubProject(event, '${sp.id}')" class="text-white/70 hover:text-rose-200 opacity-0 group-hover:opacity-100 transition text-[10px]" title="Supprimer">
-                                            <i class="fa-solid fa-trash-can"></i>
+                                        <button onclick="deleteSubProject(event, '${sp.id}')" class="h-8 px-2.5 bg-white text-rose-600 hover:bg-rose-50 border border-rose-300 rounded-lg shadow-md text-xs font-semibold flex items-center gap-1.5 whitespace-nowrap" title="Supprimer">
+                                            <i class="fa-solid fa-trash-can"></i><span>Supprimer</span>
                                         </button>
                                     </div>
 
@@ -339,7 +340,7 @@
                                         <div class="w-0.5 h-3 bg-white/60 rounded-full"></div>
                                     </div>
 
-                                    <div class="absolute -right-3 top-1/2 transform -translate-y-1/2 w-3 h-3 bg-indigo-500 border-2 border-white rounded-full cursor-crosshair opacity-0 group-hover:opacity-100 transition shadow no-print"
+                                    <div class="absolute -right-3.5 top-1/2 transform -translate-y-1/2 w-4 h-4 bg-indigo-500 border-2 border-white rounded-full cursor-crosshair opacity-0 group-hover:opacity-100 transition shadow no-print"
                                          onmousedown="startConnection(event, '${sp.id}')" title="Glisser pour relier à un autre bloc"></div>
                                 </div>
                                 `;
