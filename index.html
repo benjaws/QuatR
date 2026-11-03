@@ -252,6 +252,7 @@
         function renderGanttMatrix() {
             const matrix = document.getElementById('gantt-matrix');
             if (!matrix) return;
+            ensureStarts();
 
             const yearsCount = appData.years.length;
 
@@ -291,7 +292,7 @@
 
                 appData.years.forEach((yr, yIdx) => {
                     const assignedHere = appData.subprojects.filter(sp => sp.assignedTo && sp.assignedTo.sectionId === sec.id && sp.assignedTo.yearIdx === yIdx);
-                    assignedHere.sort((a, b) => ((a.assignedTo.subRow || 0) - (b.assignedTo.subRow || 0)) || ((a.assignedTo.order || 0) - (b.assignedTo.order || 0)));
+                    assignedHere.sort((a, b) => ((a.assignedTo.subRow || 0) - (b.assignedTo.subRow || 0)) || ((a.assignedTo.start || 0) - (b.assignedTo.start || 0)) || ((a.assignedTo.order || 0) - (b.assignedTo.order || 0)));
                     const rows = [];
                     assignedHere.forEach(sp => {
                         const r = sp.assignedTo.subRow || 0;
@@ -300,7 +301,7 @@
                     });
 
                     html += `
-                        <div class="p-2 border-r border-slate-200 last:border-r-0 min-h-[90px] flex flex-col space-y-1 relative transition bg-white hover:bg-slate-50/40"
+                        <div data-cell class="p-2 border-r border-slate-200 last:border-r-0 min-h-[90px] flex flex-col space-y-1 relative transition bg-white hover:bg-slate-50/40"
                              ondragover="allowDrop(event)" ondragleave="removeDragOver(event)" ondrop="dropToCell(event, ${yIdx}, '${sec.id}')">
                     `;
 
@@ -313,12 +314,15 @@
                     } else {
                         rows.forEach(row => {
                             html += `<div class="gantt-row" ondragover="allowDrop(event)" ondragleave="removeDragOver(event)" ondrop="dropToCell(event, ${yIdx}, '${sec.id}', ${row.r})">`;
+                            let prevEnd = 0;
                             row.items.forEach(sp => {
                                 const style = colorStyles[sp.color] || colorStyles.blue;
                                 const widthVal = Math.min(sp.widthPct || 50, maxWidthPct(sp));
+                                const gap = sp.assignedTo.start == null ? 0 : Math.max(0, sp.assignedTo.start - prevEnd);
+                                prevEnd += gap + widthVal;
                                 html += `
                                 <div id="block-${sp.id}" draggable="true" ondragstart="handleDragStart(event, '${sp.id}')"
-                                     style="width: ${blockWidthCss(widthVal)}; margin: 0 2px; flex: 0 0 auto;"
+                                     style="width: ${blockWidthCss(widthVal)}; margin: 0 2px 0 calc(${gap}% + 2px); flex: 0 0 auto;"
                                      class="gantt-bar ${style.bg} rounded-xl p-2.5 shadow-md flex items-center justify-between group cursor-grab active:cursor-grabbing border relative z-10">
                                     
                                     <div class="flex items-center space-x-2 overflow-hidden flex-1">
@@ -497,6 +501,24 @@
             e.currentTarget.classList.remove('drag-over');
         }
 
+        // start position (% of cell width): blocks without one are chained left to right
+        function ensureStarts() {
+            const rows = {};
+            appData.subprojects.forEach(sp => {
+                if (!sp.assignedTo) return;
+                const k = sp.assignedTo.sectionId + '|' + sp.assignedTo.yearIdx + '|' + (sp.assignedTo.subRow || 0);
+                (rows[k] = rows[k] || []).push(sp);
+            });
+            Object.values(rows).forEach(list => {
+                list.sort((a, b) => (a.assignedTo.order || 0) - (b.assignedTo.order || 0));
+                let end = 0;
+                list.forEach(sp => {
+                    if (sp.assignedTo.start == null) sp.assignedTo.start = end;
+                    end = Math.max(end, sp.assignedTo.start) + Math.min(sp.widthPct || 50, 300);
+                });
+            });
+        }
+
         function dropToCell(e, yearIdx, sectionId, targetRow) {
             e.preventDefault();
             e.stopPropagation();
@@ -509,36 +531,39 @@
             const others = appData.subprojects.filter(s => s.assignedTo && s.assignedTo.sectionId === sectionId && s.assignedTo.yearIdx === yearIdx && s.id !== sp.id);
             const maxRow = others.length ? Math.max(...others.map(s => s.assignedTo.subRow || 0)) : -1;
 
-            let row, order;
+            // horizontal drop position in the cell (% of its inner width), block centered on the mouse
+            const wPct = Math.min(sp.widthPct || 50, 300);
+            let start = 0;
+            const cellEl = e.currentTarget.closest ? e.currentTarget.closest('[data-cell]') : null;
+            if (cellEl) {
+                const r = cellEl.getBoundingClientRect();
+                const innerW = Math.max(r.width - 17, 1);
+                const xPct = ((e.clientX - (r.left + 8)) / innerW) * 100;
+                start = Math.max(0, Math.round((xPct - wPct / 2) / 5) * 5);
+            }
+            // keep the block inside the timeline (never past the last year)
+            const capPct = Math.min(3, appData.years.length - yearIdx) * 100;
+            start = Math.min(start, Math.max(0, capPct - wPct));
+
+            let row;
             if (targetRow === undefined || targetRow === -1 || !others.some(s => (s.assignedTo.subRow || 0) === targetRow)) {
-                // nouvelle ligne en bas de la cellule
                 row = maxRow + 1;
-                order = 0;
             } else {
-                // même ligne : insertion selon la position horizontale de la souris
                 row = targetRow;
-                const inRow = others.filter(s => (s.assignedTo.subRow || 0) === row).sort((a, b) => (a.assignedTo.order || 0) - (b.assignedTo.order || 0));
-                let idx = inRow.length;
-                for (let i = 0; i < inRow.length; i++) {
-                    const el = document.getElementById('block-' + inRow[i].id);
-                    if (el) {
-                        const r = el.getBoundingClientRect();
-                        if (e.clientX < r.left + r.width / 2) { idx = i; break; }
-                    }
-                }
-                inRow.splice(idx, 0, sp);
-                inRow.forEach((s, i) => { if (s !== sp) s.assignedTo.order = i; });
-                order = idx;
+                // snap to the cell's left edge and to the end of neighbouring blocks
+                const inRow = others.filter(s => (s.assignedTo.subRow || 0) === row);
+                const snaps = [0].concat(inRow.map(s => (s.assignedTo.start || 0) + Math.min(s.widthPct || 50, 300)));
+                snaps.forEach(v => { if (Math.abs(start - v) < 8) start = v; });
             }
 
-            sp.assignedTo = { yearIdx, sectionId, subRow: row, order };
+            sp.assignedTo = { yearIdx, sectionId, subRow: row, start, order: start };
             normalizeRows();
             renderApp();
             showToast(`Block "${sp.name}" placed`);
             draggedSubProjectId = null;
         }
 
-        // renumérote les lignes (sans trous) et l'ordre dans chaque ligne, pour chaque cellule
+        // renumber rows so a cell has no empty row; block positions (start) are left untouched
         function normalizeRows() {
             const cells = {};
             appData.subprojects.forEach(sp => {
@@ -547,7 +572,7 @@
                 (cells[k] = cells[k] || []).push(sp);
             });
             Object.values(cells).forEach(list => {
-                list.sort((a, b) => ((a.assignedTo.subRow || 0) - (b.assignedTo.subRow || 0)) || ((a.assignedTo.order || 0) - (b.assignedTo.order || 0)));
+                list.sort((a, b) => ((a.assignedTo.subRow || 0) - (b.assignedTo.subRow || 0)) || ((a.assignedTo.start || 0) - (b.assignedTo.start || 0)));
                 let prevRow = null, rowIdx = -1, ord = 0;
                 list.forEach(sp => {
                     const r = sp.assignedTo.subRow || 0;
