@@ -173,13 +173,13 @@
                 { id: 'sec-3', name: 'Phase 3: Deployment & Run' }
             ],
             subprojects: [
-                { id: 'sp-1', animals: 8, name: 'SP-01 Audit & Scoping', widthPct: 50, color: 'blue', assignedTo: { yearIdx: 0, sectionId: 'sec-1', subRow: 0 } },
-                { id: 'sp-2', animals: 16, name: 'SP-02 Technical Specs', widthPct: 50, color: 'amber', assignedTo: { yearIdx: 0, sectionId: 'sec-1', subRow: 1 } },
-                { id: 'sp-3', animals: 120, name: 'SP-03 Core Development V1', widthPct: 50, color: 'purple', assignedTo: { yearIdx: 1, sectionId: 'sec-2', subRow: 0 } },
-                { id: 'sp-4', animals: 60, name: 'SP-04 Integration Tests & QA', widthPct: 50, color: 'emerald', assignedTo: { yearIdx: 2, sectionId: 'sec-2', subRow: 0 } },
-                { id: 'sp-5', animals: 24, name: 'SP-05 Migration & Rollout', widthPct: 50, color: 'rose', assignedTo: { yearIdx: 2, sectionId: 'sec-3', subRow: 0 } },
-                { id: 'sp-6', name: 'SP-06 Support & Stabilization', widthPct: 50, color: 'cyan', assignedTo: { yearIdx: 2, sectionId: 'sec-3', subRow: 1 } },
-                { id: 'sp-7', name: 'SP-07 Final ROI Analysis', widthPct: 50, color: 'blue', assignedTo: null }
+                { id: 'sp-1', animals: 8, name: 'SP-01 Audit & Scoping', widthPct: 50, color: 'blue', assignedTo: { sectionId: 'sec-1', subRow: 0, start: 0 } },
+                { id: 'sp-2', animals: 16, name: 'SP-02 Technical Specs', widthPct: 50, color: 'amber', assignedTo: { sectionId: 'sec-1', subRow: 0, start: 50 } },
+                { id: 'sp-3', animals: 120, name: 'SP-03 Core Development V1', widthPct: 100, color: 'purple', assignedTo: { sectionId: 'sec-2', subRow: 0, start: 100 } },
+                { id: 'sp-4', animals: 60, name: 'SP-04 Integration Tests & QA', widthPct: 100, color: 'emerald', assignedTo: { sectionId: 'sec-2', subRow: 0, start: 200 } },
+                { id: 'sp-5', animals: 24, name: 'SP-05 Migration & Rollout', widthPct: 100, color: 'rose', assignedTo: { sectionId: 'sec-3', subRow: 0, start: 200 } },
+                { id: 'sp-6', name: 'SP-06 Support & Stabilization', widthPct: 100, color: 'cyan', assignedTo: { sectionId: 'sec-3', subRow: 1, start: 200 } },
+                { id: 'sp-7', name: 'SP-07 Final ROI Analysis', widthPct: 100, color: 'blue', assignedTo: null }
             ],
             dependencies: [
                 { from: 'sp-1', to: 'sp-3' },
@@ -275,12 +275,28 @@
             container.innerHTML = html;
         }
 
+        // Timeline model: years are only a visual scale. A block's `start` and `widthPct` are in
+        // "% of one year" (100 = one year), so the whole timeline is years.length * 100 units long.
+        function timelineUnits() { return appData.years.length * 100; }
+
+        // keep every block inside the timeline (e.g. after a year was removed)
+        function clampBlocks() {
+            const total = timelineUnits();
+            appData.subprojects.forEach(sp => {
+                if (!sp.assignedTo) return;
+                sp.widthPct = Math.max(20, Math.min(sp.widthPct || 50, total));
+                sp.assignedTo.start = Math.max(0, Math.min(sp.assignedTo.start || 0, total - sp.widthPct));
+            });
+        }
+
         function renderGanttMatrix() {
             const matrix = document.getElementById('gantt-matrix');
             if (!matrix) return;
-            ensureStarts();
+            clampBlocks();
 
             const yearsCount = appData.years.length;
+            const total = timelineUnits();
+            const yearOf = sp => Math.min(yearsCount - 1, Math.floor(sp.assignedTo.start / 100));
 
             let html = `
                 <div class="border border-slate-200 rounded-xl overflow-hidden bg-white shadow-sm">
@@ -294,7 +310,7 @@
             appData.years.forEach((yr, yIdx) => {
                 html += `
                     <div class="p-3 text-center border-r border-slate-200 last:border-r-0 flex items-center justify-between group/yr">
-                        <span class="flex items-center gap-2"><span class="text-xs font-bold text-slate-700">${yr}</span><span title="Animals in blocks starting this year">${animalPill(sumAnimals(sp => sp.assignedTo.yearIdx === yIdx), 'bg-slate-700 text-white')}</span></span>
+                        <span class="flex items-center gap-2"><span class="text-xs font-bold text-slate-700">${yr}</span><span title="Animals in blocks starting this year">${animalPill(sumAnimals(sp => yearOf(sp) === yIdx), 'bg-slate-700 text-white')}</span></span>
                         <button onclick="removeYear(${yIdx})" class="text-slate-400 hover:text-rose-600 opacity-0 group-hover/yr:opacity-100 transition p-1 no-print" title="Delete this year">
                             <i class="fa-solid fa-xmark text-xs"></i>
                         </button>
@@ -304,8 +320,17 @@
             html += `</div>`;
 
             appData.sections.forEach((sec, sIdx) => {
+                const assignedHere = appData.subprojects.filter(sp => sp.assignedTo && sp.assignedTo.sectionId === sec.id);
+                assignedHere.sort((a, b) => ((a.assignedTo.subRow || 0) - (b.assignedTo.subRow || 0)) || (a.assignedTo.start - b.assignedTo.start));
+                const rows = [];
+                assignedHere.forEach(sp => {
+                    const r = sp.assignedTo.subRow || 0;
+                    if (!rows.length || rows[rows.length - 1].r !== r) rows.push({ r, items: [] });
+                    rows[rows.length - 1].items.push(sp);
+                });
+
                 html += `
-                    <div class="grid border-b border-slate-200 last:border-b-0" style="grid-template-columns: 220px repeat(${yearsCount}, minmax(0, 1fr));">
+                    <div class="grid border-b border-slate-200 last:border-b-0" style="grid-template-columns: 220px minmax(0, 1fr);">
                         <div class="p-3 bg-slate-50/70 border-r border-slate-200 flex flex-col justify-between group/sec">
                             <input type="text" value="${sec.name}" onchange="updateSectionName('${sec.id}', this.value)" class="text-xs font-bold text-slate-800 bg-transparent border-b border-transparent hover:border-slate-300 focus:border-blue-500 focus:outline-none py-0.5">
                             <div class="flex items-center justify-between mt-2">
@@ -315,43 +340,32 @@
                                 </button>
                             </div>
                         </div>
+
+                        <div data-lane class="relative py-2 min-h-[90px] flex flex-col gap-1 bg-white"
+                             ondragover="allowDrop(event)" ondragleave="removeDragOver(event)" ondrop="dropToLane(event, '${sec.id}')">
+                            <div class="absolute inset-0 grid pointer-events-none" style="grid-template-columns: repeat(${yearsCount}, minmax(0, 1fr));">
+                                ${appData.years.map(() => '<div class="border-r border-slate-200 last:border-r-0"></div>').join('')}
+                            </div>
                 `;
 
-                appData.years.forEach((yr, yIdx) => {
-                    const assignedHere = appData.subprojects.filter(sp => sp.assignedTo && sp.assignedTo.sectionId === sec.id && sp.assignedTo.yearIdx === yIdx);
-                    assignedHere.sort((a, b) => ((a.assignedTo.subRow || 0) - (b.assignedTo.subRow || 0)) || ((a.assignedTo.start || 0) - (b.assignedTo.start || 0)) || ((a.assignedTo.order || 0) - (b.assignedTo.order || 0)));
-                    const rows = [];
-                    assignedHere.forEach(sp => {
-                        const r = sp.assignedTo.subRow || 0;
-                        if (!rows.length || rows[rows.length - 1].r !== r) rows.push({ r, items: [] });
-                        rows[rows.length - 1].items.push(sp);
-                    });
-
+                if (rows.length === 0) {
                     html += `
-                        <div data-cell class="p-2 border-r border-slate-200 last:border-r-0 min-h-[90px] flex flex-col space-y-1 relative transition bg-white hover:bg-slate-50/40"
-                             ondragover="allowDrop(event)" ondragleave="removeDragOver(event)" ondrop="dropToCell(event, ${yIdx}, '${sec.id}')">
+                        <div class="relative mx-2 flex-1 flex items-center justify-center border border-dashed border-slate-200 rounded-lg text-slate-300 text-[11px] select-none pointer-events-none">
+                            Drop here
+                        </div>
                     `;
-
-                    if (rows.length === 0) {
-                        html += `
-                            <div class="flex-1 flex items-center justify-center border border-dashed border-slate-200 rounded-lg text-slate-300 text-[11px] select-none pointer-events-none">
-                                Drop here
-                            </div>
-                        `;
-                    } else {
-                        rows.forEach(row => {
-                            html += `<div class="gantt-row" ondragover="allowDrop(event)" ondragleave="removeDragOver(event)" ondrop="dropToCell(event, ${yIdx}, '${sec.id}', ${row.r})">`;
-                            let prevEnd = 0;
-                            row.items.forEach(sp => {
-                                const style = colorStyles[sp.color] || colorStyles.blue;
-                                const widthVal = Math.min(sp.widthPct || 50, maxWidthPct(sp));
-                                const gap = sp.assignedTo.start == null ? 0 : Math.max(0, sp.assignedTo.start - prevEnd);
-                                prevEnd += gap + widthVal;
-                                html += `
+                } else {
+                    rows.forEach(row => {
+                        html += `<div class="relative h-11 flex-shrink-0" ondragover="allowDrop(event)" ondragleave="removeDragOver(event)" ondrop="dropToLane(event, '${sec.id}', ${row.r})">`;
+                        row.items.forEach(sp => {
+                            const style = colorStyles[sp.color] || colorStyles.blue;
+                            const left = (sp.assignedTo.start / total) * 100;
+                            const width = (sp.widthPct / total) * 100;
+                            html += `
                                 <div id="block-${sp.id}" draggable="true" ondragstart="handleDragStart(event, '${sp.id}')"
-                                     style="width: ${blockWidthCss(widthVal)}; margin: 0 2px 0 calc(${gap}% + 2px); flex: 0 0 auto;"
-                                     class="gantt-bar ${style.bg} rounded-xl p-2.5 shadow-md flex items-center justify-between group cursor-grab active:cursor-grabbing border relative z-10">
-                                    
+                                     style="position: absolute; top: 0; bottom: 0; left: calc(${left}% + 2px); width: calc(${width}% - 4px);"
+                                     class="gantt-bar ${style.bg} rounded-xl px-2.5 shadow-md flex items-center justify-between group cursor-grab active:cursor-grabbing border z-10">
+
                                     <div class="flex items-center space-x-2 overflow-hidden flex-1">
                                         <i class="fa-solid fa-bars text-[10px] opacity-60 no-print"></i>
                                         <span class="text-xs font-bold truncate">${sp.name}</span>
@@ -381,18 +395,15 @@
                                     <div class="absolute -right-3.5 top-1/2 transform -translate-y-1/2 w-4 h-4 bg-indigo-500 border-2 border-white rounded-full cursor-crosshair opacity-0 group-hover:opacity-100 transition shadow no-print"
                                          onmousedown="startConnection(event, '${sp.id}')" title="Drag to link to another block"></div>
                                 </div>
-                                `;
-                            });
-                            html += `</div>`;
+                            `;
                         });
-                        // zone fine pour créer une nouvelle ligne sous les blocs existants
-                        html += `<div class="new-row-zone no-print" title="Drop here for a new row" ondragover="allowDrop(event)" ondragleave="removeDragOver(event)" ondrop="dropToCell(event, ${yIdx}, '${sec.id}', -1)"></div>`;
-                    }
+                        html += `</div>`;
+                    });
+                    // thin strip under the blocks: drop here to start a new row
+                    html += `<div class="new-row-zone no-print relative" title="Drop here for a new row" ondragover="allowDrop(event)" ondragleave="removeDragOver(event)" ondrop="dropToLane(event, '${sec.id}', -1)"></div>`;
+                }
 
-                    html += `</div>`;
-                });
-
-                html += `</div>`;
+                html += `</div></div>`;
             });
 
             html += `</div>`;
@@ -535,25 +546,11 @@
             e.currentTarget.classList.remove('drag-over');
         }
 
-        // start position (% of cell width): blocks without one are chained left to right
-        function ensureStarts() {
-            const rows = {};
-            appData.subprojects.forEach(sp => {
-                if (!sp.assignedTo) return;
-                const k = sp.assignedTo.sectionId + '|' + sp.assignedTo.yearIdx + '|' + (sp.assignedTo.subRow || 0);
-                (rows[k] = rows[k] || []).push(sp);
-            });
-            Object.values(rows).forEach(list => {
-                list.sort((a, b) => (a.assignedTo.order || 0) - (b.assignedTo.order || 0));
-                let end = 0;
-                list.forEach(sp => {
-                    if (sp.assignedTo.start == null) sp.assignedTo.start = end;
-                    end = Math.max(end, sp.assignedTo.start) + Math.min(sp.widthPct || 50, 300);
-                });
-            });
-        }
+        const SNAP = 8; // snapping distance, in "% of a year"
 
-        function dropToCell(e, yearIdx, sectionId, targetRow) {
+        function blockEnd(sp) { return sp.assignedTo.start + sp.widthPct; }
+
+        function dropToLane(e, sectionId, targetRow) {
             e.preventDefault();
             e.stopPropagation();
             document.querySelectorAll('.drag-over').forEach(el => el.classList.remove('drag-over'));
@@ -562,57 +559,55 @@
             const sp = appData.subprojects.find(s => s.id === draggedSubProjectId);
             if (!sp) { draggedSubProjectId = null; return; }
 
-            const others = appData.subprojects.filter(s => s.assignedTo && s.assignedTo.sectionId === sectionId && s.assignedTo.yearIdx === yearIdx && s.id !== sp.id);
+            const total = timelineUnits();
+            const w = Math.max(20, Math.min(sp.widthPct || 50, total));
+            const others = appData.subprojects.filter(s => s.assignedTo && s.assignedTo.sectionId === sectionId && s.id !== sp.id);
             const maxRow = others.length ? Math.max(...others.map(s => s.assignedTo.subRow || 0)) : -1;
+            const rowExists = targetRow !== undefined && targetRow >= 0 && others.some(s => (s.assignedTo.subRow || 0) === targetRow);
+            let row = rowExists ? targetRow : maxRow + 1;
 
-            // horizontal drop position in the cell (% of its inner width), block centered on the mouse
-            const wPct = Math.min(sp.widthPct || 50, 300);
-            let start = 0;
-            const cellEl = e.currentTarget.closest ? e.currentTarget.closest('[data-cell]') : null;
-            if (cellEl) {
-                const r = cellEl.getBoundingClientRect();
-                const innerW = Math.max(r.width - 17, 1);
-                const xPct = ((e.clientX - (r.left + 8)) / innerW) * 100;
-                start = Math.max(0, Math.round((xPct - wPct / 2) / 5) * 5);
+            // horizontal position: block centered on the mouse, in "% of a year"
+            const lane = e.currentTarget.closest('[data-lane]');
+            const rect = lane.getBoundingClientRect();
+            let start = ((e.clientX - rect.left) / rect.width) * total - w / 2;
+            start = Math.round(start / 5) * 5;
+
+            // snap the block's edges to year boundaries and to neighbouring blocks in the target row
+            const inRow = others.filter(s => (s.assignedTo.subRow || 0) === row);
+            const startSnaps = [0, ...appData.years.map((_, i) => i * 100), ...inRow.map(blockEnd)];
+            const endSnaps = [...appData.years.map((_, i) => (i + 1) * 100), ...inRow.map(s => s.assignedTo.start)];
+            const bestStart = startSnaps.find(v => Math.abs(start - v) < SNAP);
+            if (bestStart !== undefined) start = bestStart;
+            else {
+                const bestEnd = endSnaps.find(v => Math.abs(start + w - v) < SNAP);
+                if (bestEnd !== undefined) start = bestEnd - w;
             }
-            // keep the block inside the timeline (never past the last year)
-            const capPct = Math.min(3, appData.years.length - yearIdx) * 100;
-            start = Math.min(start, Math.max(0, capPct - wPct));
+            start = Math.max(0, Math.min(start, total - w));
 
-            let row;
-            if (targetRow === undefined || targetRow === -1 || !others.some(s => (s.assignedTo.subRow || 0) === targetRow)) {
-                row = maxRow + 1;
-            } else {
-                row = targetRow;
-                // snap to the cell's left edge and to the end of neighbouring blocks
-                const inRow = others.filter(s => (s.assignedTo.subRow || 0) === row);
-                const snaps = [0].concat(inRow.map(s => (s.assignedTo.start || 0) + Math.min(s.widthPct || 50, 300)));
-                snaps.forEach(v => { if (Math.abs(start - v) < 8) start = v; });
-            }
+            // overlapping a block of that row: go to a new row instead of covering it
+            if (inRow.some(s => start < blockEnd(s) && s.assignedTo.start < start + w)) row = maxRow + 1;
 
-            sp.assignedTo = { yearIdx, sectionId, subRow: row, start, order: start };
+            sp.assignedTo = { sectionId, subRow: row, start };
             normalizeRows();
             renderApp();
             showToast(`Block "${sp.name}" placed`);
             draggedSubProjectId = null;
         }
 
-        // renumber rows so a cell has no empty row; block positions (start) are left untouched
+        // renumber rows so a section has no empty row; block positions (start) are left untouched
         function normalizeRows() {
-            const cells = {};
+            const sections = {};
             appData.subprojects.forEach(sp => {
                 if (!sp.assignedTo) return;
-                const k = sp.assignedTo.sectionId + '|' + sp.assignedTo.yearIdx;
-                (cells[k] = cells[k] || []).push(sp);
+                (sections[sp.assignedTo.sectionId] = sections[sp.assignedTo.sectionId] || []).push(sp);
             });
-            Object.values(cells).forEach(list => {
-                list.sort((a, b) => ((a.assignedTo.subRow || 0) - (b.assignedTo.subRow || 0)) || ((a.assignedTo.start || 0) - (b.assignedTo.start || 0)));
-                let prevRow = null, rowIdx = -1, ord = 0;
+            Object.values(sections).forEach(list => {
+                list.sort((a, b) => ((a.assignedTo.subRow || 0) - (b.assignedTo.subRow || 0)) || (a.assignedTo.start - b.assignedTo.start));
+                let prevRow = null, rowIdx = -1;
                 list.forEach(sp => {
                     const r = sp.assignedTo.subRow || 0;
-                    if (r !== prevRow) { rowIdx++; ord = 0; prevRow = r; }
+                    if (r !== prevRow) { rowIdx++; prevRow = r; }
                     sp.assignedTo.subRow = rowIdx;
-                    sp.assignedTo.order = ord++;
                 });
             });
         }
@@ -642,40 +637,35 @@
             }
         }
 
-        // largeur en % d'une cellule-année ; 100 = 1 an, 300 = 3 ans (max, limité par les années restantes à droite)
-        function maxWidthPct(sp) {
-            const left = appData.years.length - (sp.assignedTo ? sp.assignedTo.yearIdx : 0);
-            return Math.max(100, Math.min(3, left) * 100);
-        }
-
-        // compense le padding des cellules (16px) pour qu'un multiple de 100 % tombe pile sur une limite d'année
-        function blockWidthCss(pct) {
-            return `calc(${pct}% + ${(pct / 100 - 1) * 16 - 4}px)`;
-        }
-
         function initResize(e, spId) {
             e.stopPropagation();
             e.preventDefault();
 
             const sp = appData.subprojects.find(s => s.id === spId);
-            if (!sp) return;
+            if (!sp || !sp.assignedTo) return;
 
+            const total = timelineUnits();
             const startX = e.clientX;
-            const startWidth = Math.min(sp.widthPct || 50, maxWidthPct(sp));
-            const rowEl = document.getElementById(`block-${spId}`).parentElement;
-            const rowW = Math.max(rowEl.clientWidth, 1);
-            const maxW = maxWidthPct(sp);
+            const startWidth = sp.widthPct || 50;
+            const blockEl = document.getElementById(`block-${spId}`);
+            const laneW = Math.max(blockEl.closest('[data-lane]').clientWidth, 1);
+            const start = sp.assignedTo.start;
+
+            // the block cannot grow into the next block of its row, nor past the end of the timeline
+            const nextStarts = appData.subprojects
+                .filter(s => s.id !== spId && s.assignedTo && s.assignedTo.sectionId === sp.assignedTo.sectionId && s.assignedTo.subRow === sp.assignedTo.subRow && s.assignedTo.start >= start + 20)
+                .map(s => s.assignedTo.start);
+            const limit = Math.min(total, ...nextStarts);
 
             function onMouseMove(moveEvent) {
-                let newWidth = startWidth + ((moveEvent.clientX - startX) / rowW) * 100;
-                // aimantation sur 1 / 2 / 3 ans, sinon pas de 5 %
-                const nearestYear = Math.round(newWidth / 100) * 100;
-                newWidth = (nearestYear >= 100 && Math.abs(newWidth - nearestYear) < 8) ? nearestYear : Math.round(newWidth / 5) * 5;
-                newWidth = Math.max(20, Math.min(maxW, newWidth));
-                sp.widthPct = newWidth;
+                let end = start + startWidth + ((moveEvent.clientX - startX) / laneW) * total;
+                // snap the end to a year boundary, otherwise to steps of 5
+                const nearestYear = Math.round(end / 100) * 100;
+                end = (nearestYear > start && Math.abs(end - nearestYear) < SNAP) ? nearestYear : Math.round(end / 5) * 5;
+                end = Math.max(start + 20, Math.min(limit, end));
+                sp.widthPct = end - start;
 
-                const blockEl = document.getElementById(`block-${spId}`);
-                if (blockEl) blockEl.style.width = blockWidthCss(newWidth);
+                blockEl.style.width = `calc(${(sp.widthPct / total) * 100}% - 4px)`;
                 drawArrows();
             }
 
@@ -765,13 +755,19 @@
                 showToast('At least one year is required', 'error');
                 return;
             }
+            // cut the removed year out of the timeline: blocks after it shift left, blocks across it get shorter
+            const a = yIdx * 100, b = a + 100;
             appData.years.splice(yIdx, 1);
             appData.subprojects.forEach(sp => {
-                if (sp.assignedTo) {
-                    if (sp.assignedTo.yearIdx === yIdx) sp.assignedTo = null;
-                    else if (sp.assignedTo.yearIdx > yIdx) sp.assignedTo.yearIdx--;
-                }
+                if (!sp.assignedTo) return;
+                const st = sp.assignedTo.start, en = blockEnd(sp);
+                const cut = Math.max(0, Math.min(en, b) - Math.max(st, a));
+                const newWidth = sp.widthPct - cut;
+                if (newWidth < 20) { sp.assignedTo = null; return; }
+                sp.assignedTo.start = st >= b ? st - 100 : Math.min(st, a);
+                sp.widthPct = newWidth;
             });
+            normalizeRows();
             renderApp();
             showToast('Year deleted');
         }

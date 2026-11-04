@@ -10,12 +10,12 @@ A single HTML file: no install, no server, no account. Open it in a browser and 
 
 ## Features
 
-- **Drag-and-drop blocks**: create a block, then drop it into the section and year you want.
+- **One continuous timeline**: years are only a visual scale. Each section is a single lane, and a block can sit anywhere along it, starting and ending wherever you want.
+- **Drag-and-drop blocks**: create a block, then drop it into a section at the position you want. Edges snap to year boundaries and to neighbouring blocks; a block that would overlap another goes to a new row.
 - **Backlog**: blocks not yet scheduled wait under the creation bar. Drag them onto the Gantt, or send them back to the backlog.
-- **Side-by-side blocks**: several blocks can share the same row within a year.
-- **1 to 3 years long**: stretch a block with its right-hand handle. It snaps to 1, 2 or 3 years.
+- **Resizable**: stretch a block with its right-hand handle, up to the end of the timeline. It stops at the next block of its row.
 - **Dependency arrows**: drag from a block's purple dot to another block. Click an arrow to delete it.
-- **Animal counts**: give each block a number of animals (creation bar, or the paw field under a block on hover). Totals appear per year, per section and for the whole roadmap. A block spanning several years is counted once, in the year it starts.
+- **Animal counts**: give each block a number of animals (creation bar, or the paw field under a block on hover). Totals appear per year, per section and for the whole roadmap. A block spanning several years is counted once, in the year where it starts.
 - **Editable sections and years**: rename sections, add or remove sections and years.
 - **PDF export / print**: landscape layout ready to print. In an embedded preview, a printable page opens in a new tab.
 
