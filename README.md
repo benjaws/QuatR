@@ -17,6 +17,7 @@ A single HTML file: no install, no server, no account. Open it in a browser and 
 - **Dependency arrows**: drag from a block's purple dot to another block. Click an arrow to delete it.
 - **Animal counts**: give each block a number of animals (creation bar, or the paw field under a block on hover). Totals appear per year, per section and for the whole roadmap. A block spanning several years is counted once, in the year where it starts.
 - **Editable sections and years**: rename sections, add or remove sections and years.
+- **Undo / redo**: step back and forward through your changes with the header buttons or Ctrl/Cmd+Z and Ctrl/Cmd+Shift+Z (Ctrl+Y also works).
 - **PDF export / print**: landscape layout ready to print. In an embedded preview, a printable page opens in a new tab.
 
 ## Usage
