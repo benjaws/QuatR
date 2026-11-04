@@ -15,13 +15,14 @@ A single HTML file: no install, no server, no account. Open it in a browser and 
 - **Side-by-side blocks**: several blocks can share the same row within a year.
 - **1 to 3 years long**: stretch a block with its right-hand handle. It snaps to 1, 2 or 3 years.
 - **Dependency arrows**: drag from a block's purple dot to another block. Click an arrow to delete it.
+- **Animal counts**: give each block a number of animals (creation bar, or the paw field under a block on hover). Totals appear per year, per section and for the whole roadmap. A block spanning several years is counted once, in the year it starts.
 - **Editable sections and years**: rename sections, add or remove sections and years.
 - **PDF export / print**: landscape layout ready to print. In an embedded preview, a printable page opens in a new tab.
 
 ## Usage
 
 1. Open `index.html` in your browser (Chrome, Edge, Firefox, Safari).
-2. Type a name, pick a color, click **Add block**.
+2. Type a name, pick a color, enter a number of animals (optional), click **Add block**.
 3. Drag the block onto the Gantt.
 4. Stretch it, link it to other blocks, then click **Export PDF / Print**.
 
